@@ -1,0 +1,21 @@
+{
+  "name": "appointment-scheduler",
+  "version": "1.0.0",
+  "description": "A simple demo for creating appointments",
+  "main": "webpack.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^2.5.0",
+    "axios": "^0.16.2",
+    "babel": "^6.23.0",
+    "babel-preset-stage-3": "^6.24.1",
+    "material-ui": "^0.19.1",
+    "moment": "^2.18.1",
+    "normalize.css": "^7.0.0",
+    "react-tap-event-plugin": "^2.0.1"
+  }
+}
