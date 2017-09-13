@@ -257,7 +257,7 @@ export default class App extends Component {
               </Step>
               <Step disabled={!Number.isInteger(this.state.appointmentSlot)}>
                 <StepButton onClick={() => this.setState({ stepIndex: 2 })}>
-                  Share your contact information with us and we'll send you a
+                  Share your contact information with us and we\'ll send you a
                   reminder
                 </StepButton>
                 <StepContent>
