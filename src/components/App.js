@@ -63,35 +63,245 @@ export default class App extends Component {
 
   // component methods
 
-  handleNavToggle() {}
+  handleNavToggle() {
+    return this.setState({ navOpen: !this.state.navOpen });
+  }
 
-  handleNextStep() {}
+  handleNextStep() {
+    const { stepIndex } = this.state;
+    return stepIndex < 3 ? this.setState({ stepIndex: stepIndex + 1 }) : null;
+  }
 
-  handleSetAppointmentDate(date) {}
+  handleSetAppointmentDate(date) {
+    this.handleNextStep();
+    this.setState({ appointmentDate: date, confirmationTextVisible: true });
+  }
 
-  handleSetAppointmentSlot(slot) {}
+  handleSetAppointmentSlot(slot) {
+    this.handleNextStep();
+    this.setState({ appointmentSlot: slot });
+  }
 
-  handleSetAppointmentMeridiem(meridiem) {}
+  handleSetAppointmentMeridiem(meridiem) {
+    this.setState({ appointmentMeridiem: meridiem });
+  }
 
-  handleFetch(response) {}
+  handleFetch(response) {
+    const { configs, appointments } = response;
+    const initSchedule = {};
+    const today = moment().startOf('day');
+    initSchedule[today.format('YYYY-DD-MM')] = true;
+    const schedule = !appointments.length
+      ? initSchedule
+      : appointments.reduce((currentSchedule, appointment) => {
+          const { date, slot } = appointment;
+          const dateString = moment(date, 'YYYY-DD-MM').format('YYYY-DD-MM');
+          !currentSchedule[date]
+            ? (currentSchedule[dateString] = Array(8).fill(false))
+            : null;
+          Array.isArray(currentSchedule[dateString])
+            ? (currentSchedule[dateString][slot] = true)
+            : null;
+          return currentSchedule;
+        }, initSchedule);
 
-  handleFetchError(err) {}
+    for (let day in schedule) {
+      let slots = schedule[day];
+      slots.length
+        ? slots.every(slot => slot === true) ? (schedule[day] = true) : null
+        : null;
+    }
 
-  handleSubmit() {}
+    this.setState({
+      schedule,
+      siteTitle: configs.site_title,
+      aboutPageUrl: configs.about_page_url,
+      contactPageUrl: configs.contact_page_url,
+      homePageUrl: configs.homePageUrl,
+      loading: false
+    });
+  }
 
-  validateEmail(email) {}
+  handleFetchError(err) {
+    console.error('Error fetching data: ' + err);
+    this.setState({
+      confirmationSnackbarMessage: 'Error fetching data',
+      confirmationSnackbarOpen: true
+    });
+  }
 
-  validatePhone(phoneNumber) {}
+  handleSubmit() {
+    const appointment = {
+      date: moment(this.state.appointmentDate).format('YYYY-DD-MM'),
+      slot: this.state.appointmentSlot,
+      name: this.state.firstName + ' ' + this.state.lastName,
+      email: this.state.email,
+      phone: this.state.phone
+    };
+    axios.post(HOST + 'api/appointments');
+    axios
+      .post(HOST + 'api/appointments', appointment)
+      .then(response =>
+        this.setState({
+          confirmationSnackbarMessage: 'Appointment succesfully added!',
+          confirmationSnackbarOpen: true,
+          processed: true
+        })
+      )
+      .catch(err => {
+        console.log(err);
+        return this.setState({
+          confirmationSnackbarMessage: 'Appointment failed to save.',
+          confirmationSnackbarOpen: true
+        });
+      });
+  }
 
-  checkDisableDate(date) {}
+  validateEmail(email) {
+    const regex = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()[\]\.,;:\s@\"]+\.)+[^<>()[\]\.,;:\s@\"]{2,})$/i;
+    return regex.test(email)
+      ? this.setState({ email: email, validEmail: true })
+      : this.setState({ validEmail: false });
+  }
 
-  renderConfirmationString() {}
+  validatePhone(phoneNumber) {
+    const regex = /^(1\s|1|)?((\(\d{3}\))|\d{3})(\-|\s)?(\d{3})(\-|\s)?(\d{4})$/;
+    return regex.test(phoneNumber)
+      ? this.setState({ phone: phoneNumber, validPhone: true })
+      : this.setState({ validPhone: false });
+  }
 
-  renderAppointmentTimes() {}
+  checkDisableDate(date) {
+    const dateString = moment(day).format('YYYY-DD-MM');
+    return (
+      this.state.schedule[dateString] === true ||
+      moment(day)
+        .startOf('day')
+        .diff(moment().startOf('day')) < 0
+    );
+  }
 
-  renderAppointmentConfirmation() {}
+  renderConfirmationString() {
+    const spanStyle = { color: '#00bcd4' };
+    return this.state.confirmationTextVisible ? (
+      <h2
+        style={{
+          textAlign: this.state.smallScreen ? 'center' : 'left',
+          color: '#bdbdbd',
+          lineHeight: 1.5,
+          padding: '0 10px',
+          fontFamily: 'Roboto'
+        }}
+      >
+        {
+          <span>
+            Scheduling a <span style={spanStyle}> 1 hour </span> appointment
+            {this.state.appointmentDate && (
+              <span>
+                on
+                <span style={spanStyle}>
+                  {moment(this.state.appointmentDate).format('dddd[,] MMMM Do')}
+                </span>
+              </span>
+            )}
+            {Number.isInteger(this.state.appointmentSlot) && (
+              <span>
+                at
+                <span style={spanStyle}>
+                  {moment()
+                    .hour(9)
+                    .minute(0)
+                    .add(this.state.appointmentSlot, 'hours')
+                    .format('h:mm a')}
+                </span>
+              </span>
+            )}
+          </span>
+        }
+      </h2>
+    ) : null;
+  }
 
-  resize() {}
+  renderAppointmentTimes() {
+    if (!this.state.loading) {
+      const slots = [...Array(8).keys()];
+      return slots.map(slot => {
+        const appointmentDateString = moment(this.state.appointmentDate).format(
+          'YYYY-DD-MM'
+        );
+        const t1 = moment()
+          .hour(9)
+          .minute(0)
+          .add(slot, 'hours');
+        const t2 = moment()
+          .hour(9)
+          .minute(0)
+          .add(slot + 1, 'hours');
+        const scheduleDisabled = this.state.schedule[appointmentDateString]
+          ? this.state.schedule[
+              moment(this.state.appointmentDate).format('YYYY-DD-MM')
+            ][slot]
+          : false;
+        const meridiemDisabled = this.state.appointmentMeridiem
+          ? t1.format('a') === 'am'
+          : t1.format('a') === 'pm';
+        return (
+          <RadioButton
+            label={t1.format('h:mm a') + ' - ' + t2.format('h:mm a')}
+            key={slot}
+            value={slot}
+            style={{
+              marginBottom: 15,
+              display: meridiemDisabled ? 'none' : 'inherit'
+            }}
+            disabled={scheduleDisabled || meridiemDisabled}
+          />
+        );
+      });
+    } else {
+      return null;
+    }
+  }
+
+  renderAppointmentConfirmation() {
+    const spanStyle = { color: '#00bcd4' };
+    return (
+      <section>
+        <p>
+          Name:
+          <span style={spanStyle}>
+            {this.state.firstName} {this.state.lastName}
+          </span>
+        </p>
+        <p>
+          Number: <span style={spanStyle}>{this.state.phone}</span>
+        </p>
+        <p>
+          Email: <span style={spanStyle}>{this.state.email}</span>
+        </p>
+        <p>
+          Appointment:
+          <span style={spanStyle}>
+            {moment(this.state.appointmentDate).format(
+              'dddd[,] MMMM Do[,] YYYY'
+            )}
+          </span>
+          at
+          <span style={spanStyle}>
+            {moment()
+              .hour(9)
+              .minute(0)
+              .add(this.state.appointmentSlot, 'hours')
+              .format('h:mm a')}
+          </span>
+        </p>
+      </section>
+    );
+  }
+
+  resize() {
+    this.setState({ smallScreen: window.innerWidth < 768 });
+  }
 
   // lifecycle methods
   componentWillMount() {
